@@ -39,6 +39,19 @@ if (isset($_REQUEST['res'])) {
     $message = '@' . $table['name'] . ' ' . $table['message'];
 }
 
+// いいね機能
+if (isset($_REQUEST['good'])) {
+    $good = $db->prepare('INSERT INTO favorites SET member_id=?, post_id=?,created=NOW()');
+    $good->execute(array($_SESSION['id'], $_REQUEST['good']));
+    header('Location: index.php');
+    exit();
+} elseif (isset($_REQUEST['quit-good'])) {
+    $delete = $db->prepare('DELETE FROM favorites WHERE member_id=? AND post_id=?');
+    $delete->execute(array($_SESSION['id'], $_REQUEST['quit-good']));
+    header('Location: index.php');
+    exit();
+}
+
 // 返信の場合
 if (isset($_REQUEST['retweet_id'])) {
     $retweet_post = $db->prepare('SELECT * FROM posts WHERE id=?');
@@ -102,38 +115,53 @@ function retweetedPost($post)
     return $retweeted_post['retweet_post_id'];
 }
 
-
-
 function retweetCounts($post)
 {
     global $db;
+    $is_retweet_post_id = null;
     if ((int) $post['retweet_post_id'] === 0) {
-        $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? ');
-        $retweet_numbers->execute(array($post['id']));
-        $all_post = $retweet_numbers->fetch();
-        return $all_post['cnt'];
+        $is_retweet_post_id = $post['id'];
     } else {
-        $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? ');
-        $retweet_numbers->execute(array($post['retweet_post_id']));
-        $all_post = $retweet_numbers->fetch();
-        return $all_post['cnt'];
+        $is_retweet_post_id = $post['retweet_post_id'];
     }
+    $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? ');
+    $retweet_numbers->execute(array($is_retweet_post_id));
+    $all_post = $retweet_numbers->fetch();
+    return $all_post['cnt'];
 }
 
 function myRetweetCounts($post)
 {
     global $db;
+    $search_retweet_post_id = null;
+
     if ((int) $post['retweet_post_id'] === 0) {
-        $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? AND member_id=?');
-        $retweet_numbers->execute(array($post['id'], $_SESSION['id']));
-        $all_post = $retweet_numbers->fetch();
-        return $all_post['cnt'];
+        $search_retweet_post_id = $post['id'];
     } else {
-        $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? AND member_id=?');
-        $retweet_numbers->execute(array($post['retweet_post_id'], $_SESSION['id']));
-        $all_post = $retweet_numbers->fetch();
-        return $all_post['cnt'];
+        $search_retweet_post_id = $post['retweet_post_id'];
     }
+    $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? AND member_id=?');
+    $retweet_numbers->execute(array($search_retweet_post_id, $_SESSION['id']));
+    $all_post = $retweet_numbers->fetch();
+    return $all_post['cnt'];
+}
+
+function goodCheck($post)
+{
+    global $db;
+    $is_good = $db->prepare('SELECT * FROM favorites WHERE member_id=? AND post_id=?');
+    $is_good->execute(array($_SESSION['id'], $post['id']));
+    $good = $is_good->fetch();
+    return $good;
+}
+
+function goodCounts($post)
+{
+    global $db;
+    $good_numbers = $db->prepare('SELECT COUNT(post_id) from favorites where post_id=?');
+    $good_numbers->execute(array($post['id']));
+    $good_numbers = $good_numbers->fetch();
+    return $good_numbers[0];
 }
 
 // htmlspecialcharsのショートカット
@@ -232,9 +260,28 @@ function makeLink($value)
                                         ?>
                                     <span style="color:green;"><?php echo retweetCounts($post); ?></span>
                                 </span>
-                                <span class="favorite">
-                                    <img class="favorite-image" src="images/heart-solid-gray.svg"><span style="color:gray;">34</span>
-                                </span>
+
+
+
+
+
+                                <?php if (goodCheck($post)) : ?>
+                                    <a href="index.php?quit-good=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>">
+                                        <span class="favorite">
+                                            <img class="favorite-image" src="images/heart-solid-red.svg"><span style="color:red;"><?php echo goodCounts($post); ?></span>
+                                        </span>
+                                    </a>
+                                <?php else : ?>
+                                    <!-- いいねしていない時 -->
+                                    <a href="index.php?good=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>">
+                                        <span class="favorite">
+                                            <img class="favorite-image" src="images/heart-solid-gray.svg"><span style="color:gray;"><?php echo goodCounts($post); ?></span>
+                                        </span>
+                                    </a>
+                                <?php endif; ?>
+
+
+
 
                                 <a href="view.php?id=<?php echo h($post['id']); ?>"><?php echo h($post['created']); ?></a>
                                 <?php
