@@ -218,7 +218,7 @@ function goodCounts($post)
 // htmlspecialcharsのショートカット
 function h($value)
 {
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    return h($value, ENT_QUOTES, 'UTF-8');
 }
 
 // 本文内のURLにリンクを設定します
@@ -282,12 +282,12 @@ function makeLink($value)
                                         if (myRetweetCounts($post) !== '0') {
                                             ?>
                                         <!-- 自分のリツイートを押したら押したツイートを削除 -->
-                                        <a href="index.php?quit-retweet=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
+                                        <a href="index.php?quit-retweet=<?php echo h($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
                                     <?php
                                             // <!-- 自分がリツイートした元のpostは青色のリツイート画像-->
                                         } elseif (myRetweetCounts($post)) {
                                             ?>
-                                        <a href="index.php?quit-retweet=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
+                                        <a href="index.php?quit-retweet=<?php echo h($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
 
                                     <?php
                                         } else {
@@ -300,14 +300,14 @@ function makeLink($value)
                                 </span>
 
                                 <?php if (goodCheck($post)) : ?>
-                                    <a href="index.php?quit-good=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>">
+                                    <a href="index.php?quit-good=<?php echo h($post['id'], ENT_QUOTES); ?>">
                                         <span class="favorite">
                                             <img class="favorite-image" src="images/heart-solid-red.svg"><span style="color:red;"><?php echo goodCounts($post); ?></span>
                                         </span>
                                     </a>
                                 <?php else : ?>
                                     <!-- いいねしていない時 -->
-                                    <a href="index.php?good=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>">
+                                    <a href="index.php?good=<?php echo h($post['id'], ENT_QUOTES); ?>">
                                         <span class="favorite">
                                             <img class="favorite-image" src="images/heart-solid-gray.svg"><span style="color:gray;"><?php echo goodCounts($post); ?></span>
                                         </span>
