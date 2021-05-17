@@ -39,20 +39,44 @@ if (isset($_REQUEST['res'])) {
     $message = '@' . $table['name'] . ' ' . $table['message'];
 }
 
-// いいね機能
+function selectPost($post_id)
+{
+    global $db;
+    $post = $db->prepare('SELECT * FROM posts WHERE id=?');
+    $post->execute(array($post_id));
+    return $post = $post->fetch();
+}
+
 if (isset($_REQUEST['good'])) {
-    $good = $db->prepare('INSERT INTO favorites SET member_id=?, post_id=?,created=NOW()');
-    $good->execute(array($_SESSION['id'], $_REQUEST['good']));
+    $good_post = selectPost($_REQUEST['good']);
+    $good = $db->prepare('INSERT INTO favorites SET member_id=?, post_id=?, created=NOW()');
+
+    if ((int) $good_post['retweet_post_id'] === 0) {
+        // リツイートされていないpostの場合
+        $good->execute(array($_SESSION['id'], $good_post['id']));
+    } else {
+        // リツイートされているpostの場合
+        $good->execute(array($_SESSION['id'], $good_post['retweet_post_id']));
+    }
+
     header('Location: index.php');
     exit();
 } elseif (isset($_REQUEST['quit-good'])) {
-    $delete = $db->prepare('DELETE FROM favorites WHERE member_id=? AND post_id=?');
-    $delete->execute(array($_SESSION['id'], $_REQUEST['quit-good']));
+    $quit_good_post = selectPost($_REQUEST['quit-good']);
+    $del = $db->prepare('DELETE FROM favorites WHERE member_id=? AND post_id=?');
+
+    if ((int) $quit_good_post['retweet_post_id'] === 0) {
+        // リツイートされていないpostの場合
+        $del->execute(array($_SESSION['id'], $quit_good_post['id']));
+    } else {
+        // リツイートされているpostの場合
+        $del->execute(array($_SESSION['id'], $quit_good_post['retweet_post_id']));
+    }
     header('Location: index.php');
     exit();
 }
 
-// 返信の場合
+// リツイート機能の場合
 if (isset($_REQUEST['retweet_id'])) {
     $retweet_post = $db->prepare('SELECT * FROM posts WHERE id=?');
     $retweet_post->execute(array($_REQUEST['retweet_id']));
@@ -102,7 +126,6 @@ $posts = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHE
 $posts->bindParam(1, $start, PDO::PARAM_INT);
 $posts->execute();
 
-
 function retweetedPost($post)
 {
     global $db;
@@ -118,16 +141,32 @@ function retweetedPost($post)
 function retweetCounts($post)
 {
     global $db;
-    $is_retweet_post_id = null;
+    $check_retweet_post_id = null;
     if ((int) $post['retweet_post_id'] === 0) {
-        $is_retweet_post_id = $post['id'];
+        $check_retweet_post_id = $post['id'];
     } else {
-        $is_retweet_post_id = $post['retweet_post_id'];
+        $check_retweet_post_id = $post['retweet_post_id'];
     }
     $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? ');
-    $retweet_numbers->execute(array($is_retweet_post_id));
+    $retweet_numbers->execute(array($check_retweet_post_id));
     $all_post = $retweet_numbers->fetch();
     return $all_post['cnt'];
+}
+
+function isRetweetMyself($post)
+{
+    global $db;
+    $search_retweet_post_id = null;
+
+    if ((int) $post['retweet_post_id'] === 0) {
+        $search_retweet_post_id = $post['id'];
+    } else {
+        $search_retweet_post_id = $post['retweet_post_id'];
+    }
+    $retweet_numbers = $db->prepare('SELECT COUNT(retweet_post_id) as cnt FROM posts WHERE retweet_post_id=? AND member_id=?');
+    $retweet_numbers->execute(array($search_retweet_post_id, $_SESSION['id']));
+    $all_post = $retweet_numbers->fetch();
+    return $all_post['cnt'] !== '0';
 }
 
 function myRetweetCounts($post)
@@ -150,7 +189,13 @@ function goodCheck($post)
 {
     global $db;
     $is_good = $db->prepare('SELECT * FROM favorites WHERE member_id=? AND post_id=?');
-    $is_good->execute(array($_SESSION['id'], $post['id']));
+
+    if ($post['retweet_post_id'] === '0') {
+        $is_good->execute(array($_SESSION['id'], $post['id']));
+    } else {
+        $is_good->execute(array($_SESSION['id'], $post['retweet_post_id']));
+    }
+
     $good = $is_good->fetch();
     return $good;
 }
@@ -159,7 +204,13 @@ function goodCounts($post)
 {
     global $db;
     $good_numbers = $db->prepare('SELECT COUNT(post_id) from favorites where post_id=?');
-    $good_numbers->execute(array($post['id']));
+
+    if ((int) $post['retweet_post_id'] === 0) {
+        $good_numbers->execute(array($post['id']));
+    } else {
+        $good_numbers->execute(array($post['retweet_post_id']));
+    }
+
     $good_numbers = $good_numbers->fetch();
     return $good_numbers[0];
 }
@@ -211,19 +262,6 @@ function makeLink($value)
             </form>
 
             <?php foreach ($posts as $post) : ?>
-                <?php
-                    $retweet = $db->prepare('SELECT * FROM posts WHERE member_id=? AND retweet_post_id=?');
-                    $retweet->execute(array(
-                        $_SESSION['id'],
-                        $post['id']
-                    ));
-                    $retweet_record = $retweet->fetch();
-                    ?>
-                <?php
-                    $rt_on = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHERE m.id=p.member_id AND p.id=?');
-                    $rt_on->execute(array($post['retweet_post_id']));
-                    $rt_post = $rt_on->fetch();
-                    ?>
 
                 <div class="msg">
                     <?php if ($post['retweet_post_id'] == 0) : ?>
@@ -241,13 +279,13 @@ function makeLink($value)
                                 <span class="retweet">
                                     <?php
 
-                                        if ($post['member_id'] === $_SESSION['id'] && $post['retweet_post_id'] !== '0') {
+                                        if (myRetweetCounts($post) !== '0') {
                                             ?>
                                         <!-- 自分のリツイートを押したら押したツイートを削除 -->
                                         <a href="index.php?quit-retweet=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
                                     <?php
                                             // <!-- 自分がリツイートした元のpostは青色のリツイート画像-->
-                                        } elseif (myRetweetCounts($post) !== '0') {
+                                        } elseif (myRetweetCounts($post)) {
                                             ?>
                                         <a href="index.php?quit-retweet=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
 
@@ -260,10 +298,6 @@ function makeLink($value)
                                         ?>
                                     <span style="color:green;"><?php echo retweetCounts($post); ?></span>
                                 </span>
-
-
-
-
 
                                 <?php if (goodCheck($post)) : ?>
                                     <a href="index.php?quit-good=<?php echo htmlspecialchars($post['id'], ENT_QUOTES); ?>">
@@ -279,9 +313,6 @@ function makeLink($value)
                                         </span>
                                     </a>
                                 <?php endif; ?>
-
-
-
 
                                 <a href="view.php?id=<?php echo h($post['id']); ?>"><?php echo h($post['created']); ?></a>
                                 <?php
