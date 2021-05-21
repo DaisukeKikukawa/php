@@ -31,6 +31,7 @@ if (!empty($_POST)) {
 }
 
 // 返信の場合
+
 if (isset($_REQUEST['res'])) {
     $response = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHERE m.id=p.member_id AND p.id=? ORDER BY p.created DESC');
     $response->execute(array($_REQUEST['res']));
@@ -47,8 +48,8 @@ function selectPost($post_id)
     return $post = $post->fetch();
 }
 
-if (isset($_REQUEST['good'])) {
-    $good_post = selectPost($_REQUEST['good']);
+if (isset($_POST['good'])) {
+    $good_post = selectPost($_POST['good']);
     $good = $db->prepare('INSERT INTO favorites SET member_id=?, post_id=?, created=NOW()');
 
     if ((int) $good_post['retweet_post_id'] === 0) {
@@ -61,8 +62,8 @@ if (isset($_REQUEST['good'])) {
 
     header('Location: index.php');
     exit();
-} elseif (isset($_REQUEST['quit-good'])) {
-    $quit_good_post = selectPost($_REQUEST['quit-good']);
+} elseif (isset($_POST['quit-good'])) {
+    $quit_good_post = selectPost($_POST['quit-good']);
     $del = $db->prepare('DELETE FROM favorites WHERE member_id=? AND post_id=?');
 
     if ((int) $quit_good_post['retweet_post_id'] === 0) {
@@ -76,10 +77,12 @@ if (isset($_REQUEST['good'])) {
     exit();
 }
 
+
 // リツイート機能の場合
-if (isset($_REQUEST['retweet_id'])) {
+
+if (isset($_POST['retweet_id'])) {
     $retweet_post = $db->prepare('SELECT * FROM posts WHERE id=?');
-    $retweet_post->execute(array($_REQUEST['retweet_id']));
+    $retweet_post->execute(array($_POST['retweet_id']));
     $retweet_post = $retweet_post->fetch();
     // 元データのmessageとidを入れてINSERT
     $retweet = $db->prepare('INSERT INTO posts SET member_id=?, message=?, retweet_post_id=?, created=NOW()');
@@ -89,9 +92,11 @@ if (isset($_REQUEST['retweet_id'])) {
         $retweet_post['id']
 
     ));
-} elseif (isset($_REQUEST['quit-retweet'])) {
+    header('Location: index.php');
+    exit();
+} elseif (isset($_POST['quit-retweet'])) {
     $quit_post = $db->prepare('SELECT * FROM posts WHERE id=?');
-    $quit_post->execute(array($_REQUEST['quit-retweet']));
+    $quit_post->execute(array($_POST['quit-retweet']));
     $quit_post = $quit_post->fetch();
 
     if ($quit_post['retweet_post_id'] !== '0') {
@@ -104,7 +109,10 @@ if (isset($_REQUEST['retweet_id'])) {
             $quit_post['id']
         ));
     }
+    header('Location: index.php');
+    exit();
 }
+
 
 // 投稿を取得する
 $page = $_REQUEST['page'];
@@ -218,7 +226,7 @@ function goodCounts($post)
 // htmlspecialcharsのショートカット
 function h($value)
 {
-    return h($value, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
 // 本文内のURLにリンクを設定します
@@ -261,7 +269,7 @@ function makeLink($value)
                 </div>
             </form>
 
-            <?php foreach ($posts as $post) : ?>
+            <?php foreach ($posts as $index => $post) : ?>
 
                 <div class="msg">
                     <?php if ($post['retweet_post_id'] == 0) : ?>
@@ -276,43 +284,66 @@ function makeLink($value)
 
                             <p class="day">
                                 <!-- 課題：リツイートといいね機能の実装 -->
-                                <span class="retweet">
+                                <form action="index.php" method="post" name="retweetForm" class="retweet">
                                     <?php
-
                                         if (myRetweetCounts($post) !== '0') {
                                             ?>
                                         <!-- 自分のリツイートを押したら押したツイートを削除 -->
-                                        <a href="index.php?quit-retweet=<?php echo h($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
+                                        <input type="hidden" name="quit-retweet" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
+                                        <a href="javascript:retweetForm[<?php echo $index ?>].submit()">
+                                            <span class="retweet">
+                                                <img class="retweet-image" src="images/retweet-solid-blue.svg"> </span>
+                                        </a>
                                     <?php
                                             // <!-- 自分がリツイートした元のpostは青色のリツイート画像-->
                                         } elseif (myRetweetCounts($post)) {
                                             ?>
-                                        <a href="index.php?quit-retweet=<?php echo h($post['id'], ENT_QUOTES); ?>"><img class="retweet-image" src="images/retweet-solid-blue.svg"></a>
-
+                                        <input type="hidden" name="retweet_id" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
+                                        <a href="javascript:retweetForm[<?php echo $index ?>].submit()">
+                                            <span class="retweet">
+                                                <img class="retweet-image" src="images/retweet-solid-blue.svg"> </span>
+                                        </a>
                                     <?php
                                         } else {
                                             ?>
-                                        <a href="index.php?retweet_id=<?php echo h($post['id']); ?>"><img class="retweet-image" src="images/retweet-solid-gray.svg"></a>
-                                    <?php
-                                        }
-                                        ?>
-                                    <span style="color:green;"><?php echo retweetCounts($post); ?></span>
-                                </span>
+                                        <input type="hidden" name="retweet_id" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
+                                        <a href="javascript:retweetForm[<?php echo $index ?>].submit()">
+                                            <span class="retweet">
+                                                <img class="retweet-image" src="images/retweet-solid-gray.svg"> </span>
+                                        </a> <?php
+                                                    }
+                                                    ?>
 
-                                <?php if (goodCheck($post)) : ?>
-                                    <a href="index.php?quit-good=<?php echo h($post['id'], ENT_QUOTES); ?>">
-                                        <span class="favorite">
-                                            <img class="favorite-image" src="images/heart-solid-red.svg"><span style="color:red;"><?php echo goodCounts($post); ?></span>
-                                        </span>
-                                    </a>
-                                <?php else : ?>
-                                    <!-- いいねしていない時 -->
-                                    <a href="index.php?good=<?php echo h($post['id'], ENT_QUOTES); ?>">
-                                        <span class="favorite">
-                                            <img class="favorite-image" src="images/heart-solid-gray.svg"><span style="color:gray;"><?php echo goodCounts($post); ?></span>
-                                        </span>
-                                    </a>
-                                <?php endif; ?>
+
+                                </form>
+                                <span style="color:gray;"><?php echo retweetCounts($post); ?></span>
+
+
+                                <form action="index.php" method="post" name="goodForm">
+                                    <?php if (goodCheck($post)) : ?>
+
+                                        <input type="hidden" name="quit-good" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
+
+                                        <a href="javascript:goodForm[<?php echo $index ?>].submit()">
+                                            <span class="favorite">
+                                                <img class="favorite-image" src="images/heart-solid-red.svg"><span style="color:red;"><?php echo goodCounts($post); ?></span>
+                                            </span>
+                                        </a>
+
+
+                                    <?php else : ?>
+                                        <!-- いいねしていない時 -->
+                                        <input type="hidden" name="good" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
+                                        <a href="javascript:goodForm[<?php echo $index ?>].submit()">
+
+                                            <span class="favorite">
+                                                <img class="favorite-image" src="images/heart-solid-gray.svg"><span style="color:gray;"><?php echo goodCounts($post); ?></span>
+                                            </span>
+                                        </a>
+
+
+                                    <?php endif; ?>
+                                </form>
 
                                 <a href="view.php?id=<?php echo h($post['id']); ?>"><?php echo h($post['created']); ?></a>
                                 <?php
