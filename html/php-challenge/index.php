@@ -291,8 +291,7 @@ function makeLink($value)
                                         <!-- 自分のリツイートを押したら押したツイートを削除 -->
                                         <input type="hidden" name="quit-retweet" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
                                         <a href="javascript:retweetForm[<?php echo $index ?>].submit()">
-                                            <span class="retweet">
-                                                <img class="retweet-image" src="images/retweet-solid-blue.svg"> </span>
+                                                <img class="retweet-image" src="images/retweet-solid-blue.svg"> 
                                         </a>
                                     <?php
                                             // <!-- 自分がリツイートした元のpostは青色のリツイート画像-->
@@ -300,51 +299,39 @@ function makeLink($value)
                                             ?>
                                         <input type="hidden" name="retweet_id" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
                                         <a href="javascript:retweetForm[<?php echo $index ?>].submit()">
-                                            <span class="retweet">
-                                                <img class="retweet-image" src="images/retweet-solid-blue.svg"> </span>
+                                                <img class="retweet-image" src="images/retweet-solid-blue.svg"> 
                                         </a>
                                     <?php
                                         } else {
                                             ?>
                                         <input type="hidden" name="retweet_id" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
                                         <a href="javascript:retweetForm[<?php echo $index ?>].submit()">
-                                            <span class="retweet">
-                                                <img class="retweet-image" src="images/retweet-solid-gray.svg"> </span>
+                                                <img class="retweet-image" src="images/retweet-solid-gray.svg"> 
                                         </a> <?php
                                                     }
                                                     ?>
-
-
                                 </form>
                                 <span style="color:gray;"><?php echo retweetCounts($post); ?></span>
 
 
-                                <form action="index.php" method="post" name="goodForm">
+                                <form action="index.php" method="post" name="goodForm" class="favorite">
                                     <?php if (goodCheck($post)) : ?>
 
                                         <input type="hidden" name="quit-good" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
 
                                         <a href="javascript:goodForm[<?php echo $index ?>].submit()">
-                                            <span class="favorite">
                                                 <img class="favorite-image" src="images/heart-solid-red.svg"><span style="color:red;"><?php echo goodCounts($post); ?></span>
-                                            </span>
                                         </a>
-
 
                                     <?php else : ?>
                                         <!-- いいねしていない時 -->
                                         <input type="hidden" name="good" value="<?php echo h($post['id'], ENT_QUOTES); ?>" />
                                         <a href="javascript:goodForm[<?php echo $index ?>].submit()">
-
-                                            <span class="favorite">
                                                 <img class="favorite-image" src="images/heart-solid-gray.svg"><span style="color:gray;"><?php echo goodCounts($post); ?></span>
-                                            </span>
+                                           
                                         </a>
-
-
                                     <?php endif; ?>
                                 </form>
-
                                 <a href="view.php?id=<?php echo h($post['id']); ?>"><?php echo h($post['created']); ?></a>
                                 <?php
                                     if ($post['reply_post_id'] > 0) :
@@ -392,5 +379,4 @@ function makeLink($value)
         </div>
     </div>
 </body>
-
 </html>
